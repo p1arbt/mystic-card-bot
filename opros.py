@@ -41,54 +41,36 @@ predictions = {
 # Словарь для хранения выбора пользователей
 user_choices = {}
 
-# Клавиатура с выбором карт
+# Клавиатура
 keyboard = InlineKeyboardMarkup(inline_keyboard=[
     [InlineKeyboardButton(text="🔮 Карта №1", callback_data="card_1")],
     [InlineKeyboardButton(text="🔮 Карта №2", callback_data="card_2")],
     [InlineKeyboardButton(text="🔮 Карта №3", callback_data="card_3")]
 ])
 
-# Функция проверки подписки
-async def check_subscription(user_id: int) -> bool:
-    try:
-        user_status = await bot.get_chat_member(CHANNEL_ID, user_id)
-        return user_status.status in [ChatMemberStatus.MEMBER, ChatMemberStatus.ADMINISTRATOR, ChatMemberStatus.CREATOR]
-    except:
-        return False  # Ошибка при проверке подписки
-
-# Обработка нажатий на кнопки
+# Функция обработки выбора карт
 @dp.callback_query(lambda c: c.data.startswith("card_"))
 async def process_callback(callback_query: types.CallbackQuery):
     user_id = callback_query.from_user.id
-
-    # Проверяем подписку
-    if not await check_subscription(user_id):
-        await bot.send_message(user_id, "❌ Вы не подписаны на канал! Подпишитесь 👉 @taina_goroskop, чтобы получить предсказание.")
-        await callback_query.answer()
-        return
-
-    # Проверяем, делал ли пользователь выбор ранее
+    
     if user_id in user_choices:
-        await bot.send_message(user_id, "⚠️ Вы уже выбрали карту! Изменить выбор нельзя.")
+        await bot.send_message(user_id, "Вы уже выбрали карту! Изменить выбор нельзя.")
         await callback_query.answer()
         return
-
-    # Сохраняем выбор пользователя
+    
     user_choices[user_id] = callback_query.data
-
-    # Отправляем предсказание
     prediction = predictions.get(callback_query.data, "Ошибка.")
     await bot.send_message(user_id, f"✨ Ваше предсказание: {prediction}")
-
     await callback_query.answer()
 
-# Команда /start
-@dp.message(Command("start"))
-async def start(message: types.Message):
-    await message.answer(
-        "🔮 Выберите одну из карт судьбы, чтобы получить предсказание! После выбора изменить решение будет нельзя.\n\n👇 Выберите карту:",
-        reply_markup=keyboard
-    )
+# Команда /send_poll для отправки опроса в канал
+@dp.message(Command("send_poll"))
+async def send_poll(message: types.Message):
+    if message.chat.id == message.from_user.id:
+        post_text = """🌙 *Загадка судьбы...*
+        \nВыбери свою карту и узнай предсказание!"""
+        await bot.send_message(CHANNEL_ID, post_text, reply_markup=keyboard, parse_mode="Markdown")
+        await message.answer("✅ Опрос отправлен в канал!")
 
 # Запуск бота
 async def main():
